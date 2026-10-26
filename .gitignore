@@ -1,25 +1,51 @@
-# Игнорировать папки сборки и временные файлы VS
-.vs/
+# Кэш и сгенерированные файлы CMake 
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+CMakeSettings.json
+CMakeUserPresets.json
+
+# Папки сборки и вывода
 out/
 build/
-Debug/
-Release/
+bin/
+lib/
+obj/
+install/
+generated/
+[Dd]ebug/
+[Rr]elease/
 x64/
 x86/
-bin/
-obj/
 
-# Игнорировать пользовательские настройки
-*.user
+# Кэш и проектные файлы IDE
+.vs/
+.vscode/
+.idea/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
 *.suo
+*.user
 *.db
 *.opendb
 *.VC.db
+*.vsidx
 
-# Игнорировать бинарные файлы
+# Скомпилированные бинарные и объектные файлы
 *.exe
 *.dll
+*.so
+*.dylib
 *.lib
+*.a
+*.exp
 *.pdb
 *.ilk
 *.obj
+*.o
