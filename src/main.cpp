@@ -23,29 +23,29 @@ fs::path resolvePluginDirectory() {
 }
 
 int main() {
-    SetConsoleCP(1251);
-    SetConsoleOutputCP(1251);
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
 
-    std::cout << "=== Êîíñîëüíûé êàëüêóëÿòîð ñ ïîääåðæêîé äèíàìè÷åñêèõ ïëàãèíîâ ===\n";
+    std::cout << "=== ÐšÐ¾Ð½ÑÐ¾Ð»ÑŒÐ½Ñ‹Ð¹ ÐºÐ°Ð»ÑŒÐºÑƒÐ»ÑÑ‚Ð¾Ñ€ Ñ Ð¿Ð¾Ð´Ð´ÐµÑ€Ð¶ÐºÐ¾Ð¹ Ð´Ð¸Ð½Ð°Ð¼Ð¸Ñ‡ÐµÑÐºÐ¸Ñ… Ð¿Ð»Ð°Ð³Ð¸Ð½Ð¾Ð² ===\n";
 
     PluginManager pluginManager;
     pluginManager.loadFromDirectory(resolvePluginDirectory());
 
     auto funcs = pluginManager.getRegisteredFunctionNames();
     if (!funcs.empty()) {
-        std::cout << "Äîñòóïíûå ôóíêöèè èç ïëàãèíîâ: ";
+        std::cout << "Ð”Ð¾ÑÑ‚ÑƒÐ¿Ð½Ñ‹Ðµ Ñ„ÑƒÐ½ÐºÑ†Ð¸Ð¸ Ð¸Ð· Ð¿Ð»Ð°Ð³Ð¸Ð½Ð¾Ð²: ";
         for (std::size_t i = 0; i < funcs.size(); ++i) {
             std::cout << funcs[i] << (i + 1 < funcs.size() ? ", " : "\n");
         }
     }
 
-    std::cout << "Êîìàíäû: 'help' — ñïðàâêà, 'exit' — âûõîä.\n\n";
+    std::cout << "ÐšÐ¾Ð¼Ð°Ð½Ð´Ñ‹: 'help' â€” ÑÐ¿Ñ€Ð°Ð²ÐºÐ°, 'exit' â€” Ð²Ñ‹Ñ…Ð¾Ð´.\n\n";
 
     ExpressionEvaluator evaluator(pluginManager);
     std::string line;
 
     while (true) {
-        std::cout << "Ââîä > ";
+        std::cout << "Ð’Ð²Ð¾Ð´ > ";
         if (!std::getline(std::cin, line)) {
             break;
         }
@@ -59,8 +59,8 @@ int main() {
         }
 
         if (line == "help") {
-            std::cout << "Ïîääåðæèâàåìûå îïåðàöèè: +, -, *, /, ^, ()\n"
-                << "Ïðèìåðû:\n"
+            std::cout << "ÐŸÐ¾Ð´Ð´ÐµÑ€Ð¶Ð¸Ð²Ð°ÐµÐ¼Ñ‹Ðµ Ð¾Ð¿ÐµÑ€Ð°Ñ†Ð¸Ð¸: +, -, *, /, ^, ()\n"
+                << "ÐŸÑ€Ð¸Ð¼ÐµÑ€Ñ‹:\n"
                 << "  16 + 4 * (3 - 1)\n"
                 << "  2^4 + sin(90)\n"
                 << "  ln(exp(1))\n";
@@ -69,10 +69,10 @@ int main() {
 
         try {
             double answer = evaluator.evaluate(line);
-            std::cout << "Âûâîä: " << answer << "\n\n";
+            std::cout << "Ð’Ñ‹Ð²Ð¾Ð´: " << answer << "\n\n";
         }
         catch (const std::exception& ex) {
-            std::cout << "[Îøèáêà] " << ex.what() << "\n\n";
+            std::cout << "[ÐžÑˆÐ¸Ð±ÐºÐ°] " << ex.what() << "\n\n";
         }
     }
 

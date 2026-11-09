@@ -47,7 +47,7 @@ double ExpressionEvaluator::parseTerm() {
         else if (match('/')) {
             double divisor = parseUnary();
             if (divisor == 0.0) {
-                throw std::domain_error("Деление на ноль");
+                throw std::domain_error("Р”РµР»РµРЅРёРµ РЅР° РЅРѕР»СЊ");
             }
             left /= divisor;
         }
@@ -74,7 +74,7 @@ double ExpressionEvaluator::parsePower() {
         double exponent = parseUnary();
         double result = std::pow(base, exponent);
         if (!std::isfinite(result)) {
-            throw std::domain_error("Ошибка возведения в степень (комплексный результат или переполнение)");
+            throw std::domain_error("РћС€РёР±РєР° РІРѕР·РІРµРґРµРЅРёСЏ РІ СЃС‚РµРїРµРЅСЊ (РєРѕРјРїР»РµРєСЃРЅС‹Р№ СЂРµР·СѓР»СЊС‚Р°С‚ РёР»Рё РїРµСЂРµРїРѕР»РЅРµРЅРёРµ)");
         }
         return result;
     }
@@ -86,11 +86,11 @@ double ExpressionEvaluator::parsePrimary() {
 
     if (match('(')) {
         if (match(')')) {
-            throw std::invalid_argument("Пустые скобки '()' недопустимы");
+            throw std::invalid_argument("РџСѓСЃС‚С‹Рµ СЃРєРѕР±РєРё '()' РЅРµРґРѕРїСѓСЃС‚РёРјС‹");
         }
         double val = parseExpression();
         if (!match(')')) {
-            throw std::invalid_argument("Пропущена закрывающая скобка ')'");
+            throw std::invalid_argument("РџСЂРѕРїСѓС‰РµРЅР° Р·Р°РєСЂС‹РІР°СЋС‰Р°СЏ СЃРєРѕР±РєР° ')'");
         }
         return val;
     }
@@ -100,14 +100,14 @@ double ExpressionEvaluator::parsePrimary() {
         if (std::isalpha(ch) || ch == '_') {
             std::string funcName = parseIdentifier();
             if (!match('(')) {
-                throw std::invalid_argument("Ожидалась открывающая скобка '(' после имени функции '" + funcName + "'");
+                throw std::invalid_argument("РћР¶РёРґР°Р»Р°СЃСЊ РѕС‚РєСЂС‹РІР°СЋС‰Р°СЏ СЃРєРѕР±РєР° '(' РїРѕСЃР»Рµ РёРјРµРЅРё С„СѓРЅРєС†РёРё '" + funcName + "'");
             }
             if (match(')')) {
-                throw std::invalid_argument("Функция '" + funcName + "' требует ровно один аргумент");
+                throw std::invalid_argument("Р¤СѓРЅРєС†РёСЏ '" + funcName + "' С‚СЂРµР±СѓРµС‚ СЂРѕРІРЅРѕ РѕРґРёРЅ Р°СЂРіСѓРјРµРЅС‚");
             }
             double arg = parseExpression();
             if (!match(')')) {
-                throw std::invalid_argument("Пропущена закрывающая скобка ')' при вызове функции '" + funcName + "'");
+                throw std::invalid_argument("РџСЂРѕРїСѓС‰РµРЅР° Р·Р°РєСЂС‹РІР°СЋС‰Р°СЏ СЃРєРѕР±РєР° ')' РїСЂРё РІС‹Р·РѕРІРµ С„СѓРЅРєС†РёРё '" + funcName + "'");
             }
             return pluginManager_.callFunction(funcName, arg);
         }
@@ -130,7 +130,7 @@ std::string ExpressionEvaluator::parseIdentifier() {
 double ExpressionEvaluator::parseNumber() {
     skipWhitespace();
     if (pos_ >= input_.size()) {
-        throw std::invalid_argument("Неожиданный конец выражения (ожидалось число или подвыражение)");
+        throw std::invalid_argument("РќРµРѕР¶РёРґР°РЅРЅС‹Р№ РєРѕРЅРµС† РІС‹СЂР°Р¶РµРЅРёСЏ (РѕР¶РёРґР°Р»РѕСЃСЊ С‡РёСЃР»Рѕ РёР»Рё РїРѕРґРІС‹СЂР°Р¶РµРЅРёРµ)");
     }
 
     const char* startPtr = input_.c_str() + pos_;
@@ -139,13 +139,13 @@ double ExpressionEvaluator::parseNumber() {
 
     if (startPtr == endPtr) {
         throw std::invalid_argument(
-            std::string("Неожиданный символ '") + input_[pos_] + "' на позиции " + std::to_string(pos_ + 1)
+            std::string("РќРµРѕР¶РёРґР°РЅРЅС‹Р№ СЃРёРјРІРѕР» '") + input_[pos_] + "' РЅР° РїРѕР·РёС†РёРё " + std::to_string(pos_ + 1)
         );
     }
 
     pos_ += static_cast<std::size_t>(endPtr - startPtr);
     if (!std::isfinite(value)) {
-        throw std::overflow_error("Числовое значение выходит за пределы допустимого диапазона double");
+        throw std::overflow_error("Р§РёСЃР»РѕРІРѕРµ Р·РЅР°С‡РµРЅРёРµ РІС‹С…РѕРґРёС‚ Р·Р° РїСЂРµРґРµР»С‹ РґРѕРїСѓСЃС‚РёРјРѕРіРѕ РґРёР°РїР°Р·РѕРЅР° double");
     }
     return value;
 }
@@ -180,13 +180,13 @@ double ExpressionEvaluator::evaluate(const std::string& rawExpression) {
 
     if (pos_ < input_.size()) {
         throw std::invalid_argument(
-            std::string("Лишний или некорректный символ '") + input_[pos_] +
-            "' на позиции " + std::to_string(pos_ + 1)
+            std::string("Р›РёС€РЅРёР№ РёР»Рё РЅРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ СЃРёРјРІРѕР» '") + input_[pos_] +
+            "' РЅР° РїРѕР·РёС†РёРё " + std::to_string(pos_ + 1)
         );
     }
 
     if (!std::isfinite(result)) {
-        throw std::overflow_error("Результат вычисления выходит за допустимые пределы");
+        throw std::overflow_error("Р РµР·СѓР»СЊС‚Р°С‚ РІС‹С‡РёСЃР»РµРЅРёСЏ РІС‹С…РѕРґРёС‚ Р·Р° РґРѕРїСѓСЃС‚РёРјС‹Рµ РїСЂРµРґРµР»С‹");
     }
 
     if (std::abs(result) < 1e-15) {

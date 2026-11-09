@@ -39,6 +39,11 @@ private:
     std::map<std::string, UnaryMathFunc> functions_;
 
     static bool isValidIdentifier(const std::string& name);
+    static bool isDllFile(const fs::directory_entry& entry);
+    static const PluginDescriptor* fetchDescriptor(HMODULE module, const std::string& fileName);
+    static UnaryMathFunc makeSafeWrapper(PluginExecuteFunc rawExec, const std::string& funcName);
+    bool canRegister(const std::string& funcName, const std::string& fileName) const;
+    bool tryLoadPlugin(const fs::path& dllPath);
 
 public:
     PluginManager() = default;
@@ -48,7 +53,6 @@ public:
     PluginManager& operator=(const PluginManager&) = delete;
 
     void loadFromDirectory(const fs::path& pluginDir);
-    bool hasFunction(const std::string& name) const;
     double callFunction(const std::string& name, double arg) const;
     std::vector<std::string> getRegisteredFunctionNames() const;
 };

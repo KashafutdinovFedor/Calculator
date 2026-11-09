@@ -7,7 +7,7 @@
 #define PLUGIN_API extern "C" __declspec(dllexport)
 #define CALL_CONV __cdecl
 #else
-#define PLUGIN_API extern "C"
+#define PLUGIN_API extern "C" __attribute__((visibility("default")))
 #define CALL_CONV
 #endif
 

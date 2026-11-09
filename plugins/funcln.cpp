@@ -1,37 +1,12 @@
-#include "plugin_api.h"
-#include <cmath>
-#include <cstring>
-#include <stdexcept>
+#include "plugin_helpers.h"
 
 namespace {
     double computeLn(double x) {
         if (x <= 0.0) {
-            throw std::domain_error("Íàòóðàëüíûé ëîãàðèôì ln(x) îïðåäåëåí òîëüêî ïðè x > 0");
+            throw std::domain_error("ÐÐ°Ñ‚ÑƒÑ€Ð°Ð»ÑŒÐ½Ñ‹Ð¹ Ð»Ð¾Ð³Ð°Ñ€Ð¸Ñ„Ð¼ ln(x) Ð¾Ð¿Ñ€ÐµÐ´ÐµÐ»ÐµÐ½ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð¿Ñ€Ð¸ x > 0");
         }
         return std::log(x);
     }
-
-    int CALL_CONV executeLn(double x, double* outResult, char* errorBuf, std::size_t errorBufSize) {
-        if (!outResult) return -1;
-        try {
-            *outResult = computeLn(x);
-            return 0;
-        }
-        catch (const std::exception& e) {
-            if (errorBuf && errorBufSize > 0) {
-                strncpy_s(errorBuf, errorBufSize, e.what(), _TRUNCATE);
-            }
-            return 1;
-        }
-    }
-
-    const PluginDescriptor kDescriptor = {
-        PLUGIN_ABI_VERSION,
-        "ln",
-        &executeLn
-    };
 }
 
-PLUGIN_API const PluginDescriptor* CALL_CONV RegisterCalculatorPlugin() {
-    return &kDescriptor;
-}
+DEFINE_CALC_PLUGIN("ln", computeLn)

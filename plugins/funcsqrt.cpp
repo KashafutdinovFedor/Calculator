@@ -1,37 +1,12 @@
-#include "plugin_api.h"
-#include <cmath>
-#include <cstring>
-#include <stdexcept>
+#include "plugin_helpers.h"
 
 namespace {
     double computeSqrt(double x) {
         if (x < 0.0) {
-            throw std::domain_error("Êâàäðàòíûé êîðåíü sqrt(x) íå îïðåäåëåí äëÿ îòðèöàòåëüíûõ ÷èñåë (x < 0)");
+            throw std::domain_error("ÐšÐ²Ð°Ð´Ñ€Ð°Ñ‚Ð½Ñ‹Ð¹ ÐºÐ¾Ñ€ÐµÐ½ÑŒ sqrt(x) Ð½Ðµ Ð¾Ð¿Ñ€ÐµÐ´ÐµÐ»ÐµÐ½ Ð´Ð»Ñ Ð¾Ñ‚Ñ€Ð¸Ñ†Ð°Ñ‚ÐµÐ»ÑŒÐ½Ñ‹Ñ… Ñ‡Ð¸ÑÐµÐ» (x < 0)");
         }
         return std::sqrt(x);
     }
-
-    int CALL_CONV executeSqrt(double x, double* outResult, char* errorBuf, std::size_t errorBufSize) {
-        if (!outResult) return -1;
-        try {
-            *outResult = computeSqrt(x);
-            return 0;
-        }
-        catch (const std::exception& e) {
-            if (errorBuf && errorBufSize > 0) {
-                strncpy_s(errorBuf, errorBufSize, e.what(), _TRUNCATE);
-            }
-            return 1;
-        }
-    }
-
-    const PluginDescriptor kDescriptor = {
-        PLUGIN_ABI_VERSION,
-        "sqrt",
-        &executeSqrt
-    };
 }
 
-PLUGIN_API const PluginDescriptor* CALL_CONV RegisterCalculatorPlugin() {
-    return &kDescriptor;
-}
+DEFINE_CALC_PLUGIN("sqrt", computeSqrt)

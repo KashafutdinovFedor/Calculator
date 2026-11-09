@@ -49,13 +49,128 @@ bool PluginManager::isValidIdentifier(const std::string& name) {
     return true;
 }
 
+namespace {
+    template <typename... Parts>
+    void logSkip(const Parts&... parts) {
+        std::cerr << "[Skip] ";
+        (std::cerr << ... << parts);
+        std::cerr << "\n";
+    }
+}
+
+bool PluginManager::isDllFile(const fs::directory_entry& entry) {
+    std::error_code ec;
+    if (!entry.is_regular_file(ec)) return false;
+
+    std::string ext = entry.path().extension().string();
+    for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return ext == ".dll";
+}
+
+const PluginDescriptor* PluginManager::fetchDescriptor(HMODULE module, const std::string& fileName) {
+    auto registerFunc = reinterpret_cast<RegisterPluginFunc>(
+        GetProcAddress(module, PLUGIN_ENTRY_SYMBOL)
+        );
+
+    if (!registerFunc) {
+        logSkip("Р‘РёР±Р»РёРѕС‚РµРєР° '", fileName, "' РЅРµ СЃРѕРґРµСЂР¶РёС‚ С‚РѕС‡РєСѓ РІС…РѕРґР° '", PLUGIN_ENTRY_SYMBOL, "'.");
+        return nullptr;
+    }
+
+    const PluginDescriptor* desc = nullptr;
+    try {
+        desc = registerFunc();
+    }
+    catch (...) {
+        logSkip("РСЃРєР»СЋС‡РµРЅРёРµ РїСЂРё РёРЅРёС†РёР°Р»РёР·Р°С†РёРё РїР»Р°РіРёРЅР° РІ '", fileName, "'.");
+        return nullptr;
+    }
+
+    const bool valid = desc && desc->abiVersion == PLUGIN_ABI_VERSION && desc->functionName && desc->execute;
+    if (!valid) {
+        logSkip("РќРµРєРѕСЂСЂРµРєС‚РЅР°СЏ СЃС‚СЂСѓРєС‚СѓСЂР° РґРµСЃРєСЂРёРїС‚РѕСЂР° РёР»Рё РІРµСЂСЃРёСЏ ABI РІ '", fileName, "'.");
+        return nullptr;
+    }
+    return desc;
+}
+
+PluginManager::UnaryMathFunc PluginManager::makeSafeWrapper(PluginExecuteFunc rawExec, const std::string& funcName) {
+    return [rawExec, funcName](double arg) -> double {
+        double result = 0.0;
+        char errorBuf[256] = { 0 };
+        int status = 0;
+
+        try {
+            status = rawExec(arg, &result, errorBuf, sizeof(errorBuf));
+        }
+        catch (const std::exception& e) {
+            throw std::runtime_error("РСЃРєР»СЋС‡РµРЅРёРµ РІ С„СѓРЅРєС†РёРё '" + funcName + "': " + e.what());
+        }
+        catch (...) {
+            throw std::runtime_error("РќРµРёР·РІРµСЃС‚РЅРѕРµ РёСЃРєР»СЋС‡РµРЅРёРµ РІ С„СѓРЅРєС†РёРё '" + funcName + "'");
+        }
+
+        if (status != 0) {
+            std::string errMsg = (errorBuf[0] != '\0') ? errorBuf : "РѕС€РёР±РєР° РІС‹С‡РёСЃР»РµРЅРёСЏ";
+            std::string message = "РћС€РёР±РєР° РІ С„СѓРЅРєС†РёРё ";
+            message.append(funcName).append("(").append(std::to_string(arg)).append("): ").append(errMsg);
+            throw std::domain_error(message);
+        }
+
+        if (!std::isfinite(result)) {
+            throw std::overflow_error("Р¤СѓРЅРєС†РёСЏ " + funcName + " РІРµСЂРЅСѓР»Р° Р±РµСЃРєРѕРЅРµС‡РЅРѕСЃС‚СЊ РёР»Рё NaN");
+        }
+
+        return result;
+        };
+}
+
+bool PluginManager::canRegister(const std::string& funcName, const std::string& fileName) const {
+    if (!isValidIdentifier(funcName)) {
+        logSkip("РќРµРєРѕСЂСЂРµРєС‚РЅРѕРµ РёРјСЏ С„СѓРЅРєС†РёРё '", funcName, "' РІ РїР»Р°РіРёРЅРµ '", fileName, "'.");
+        return false;
+    }
+    if (functions_.find(funcName) != functions_.end()) {
+        logSkip("РљРѕРЅС„Р»РёРєС‚ РёРјС‘РЅ: С„СѓРЅРєС†РёСЏ '", funcName, "' РёР· '", fileName, "' СѓР¶Рµ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅР°.");
+        return false;
+    }
+    return true;
+}
+
+bool PluginManager::tryLoadPlugin(const fs::path& dllPath) {
+    const std::string fileName = dllPath.filename().string();
+
+    UINT oldErrorMode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+    ScopedModule module(LoadLibraryW(dllPath.wstring().c_str()));
+    const DWORD loadError = GetLastError();
+    SetErrorMode(oldErrorMode);
+
+    if (!module) {
+        logSkip("Р¤Р°Р№Р» '", fileName, "' РЅРµ СЏРІР»СЏРµС‚СЃСЏ РєРѕСЂСЂРµРєС‚РЅРѕР№ DLL (РєРѕРґ РѕС€РёР±РєРё WinAPI: ", loadError, ").");
+        return false;
+    }
+
+    const PluginDescriptor* desc = fetchDescriptor(module.get(), fileName);
+    if (!desc) return false;
+
+    std::string funcName(desc->functionName);
+    if (!canRegister(funcName, fileName)) return false;
+
+    functions_[funcName] = makeSafeWrapper(desc->execute, funcName);
+    loadedModules_.push_back(std::move(module));
+
+    std::cout << "[OK] Р—Р°РіСЂСѓР¶РµРЅР° С„СѓРЅРєС†РёСЏ '" << funcName
+        << "' (РёСЃС‚РѕС‡РЅРёРє: " << fileName << ")\n";
+    return true;
+}
+
 void PluginManager::loadFromDirectory(const fs::path& pluginDir) {
     std::error_code ec;
 
     if (!fs::exists(pluginDir, ec) || !fs::is_directory(pluginDir, ec)) {
-        std::cout << "[Warn] Директория '" << pluginDir.string()
-            << "' не найдена. Создаём пустую директорию. "
-            "Доступны только базовые операции (+, -, *, /, ^, ()).\n";
+        std::cout << "[Warn] Р”РёСЂРµРєС‚РѕСЂРёСЏ '" << pluginDir.string()
+            << "' РЅРµ РЅР°Р№РґРµРЅР°. РЎРѕР·РґР°С‘Рј РїСѓСЃС‚СѓСЋ РґРёСЂРµРєС‚РѕСЂРёСЋ. "
+            "Р”РѕСЃС‚СѓРїРЅС‹ С‚РѕР»СЊРєРѕ Р±Р°Р·РѕРІС‹Рµ РѕРїРµСЂР°С†РёРё (+, -, *, /, ^, ()).\n";
         fs::create_directories(pluginDir, ec);
         return;
     }
@@ -64,121 +179,31 @@ void PluginManager::loadFromDirectory(const fs::path& pluginDir) {
     std::size_t totalDlls = 0;
 
     for (const auto& entry : fs::directory_iterator(pluginDir, ec)) {
-        if (ec) {
-            std::cerr << "[Error] Ошибка чтения элемента директории: " << ec.message() << "\n";
-            continue;
-        }
-
-        if (!entry.is_regular_file(ec)) continue;
-
-        std::string ext = entry.path().extension().string();
-        for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (ext != ".dll") continue;
+        if (!isDllFile(entry)) continue;
 
         ++totalDlls;
-        const std::string fileName = entry.path().filename().string();
-
-        UINT oldErrorMode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
-        ScopedModule module(LoadLibraryW(entry.path().wstring().c_str()));
-        SetErrorMode(oldErrorMode);
-
-        if (!module) {
-            std::cerr << "[Skip] Файл '" << fileName
-                << "' не является корректной DLL (код ошибки WinAPI: "
-                << GetLastError() << ").\n";
-            continue;
+        if (tryLoadPlugin(entry.path())) {
+            ++loadedCount;
         }
+    }
 
-        auto registerFunc = reinterpret_cast<RegisterPluginFunc>(
-            GetProcAddress(module.get(), PLUGIN_ENTRY_SYMBOL)
-            );
-
-        if (!registerFunc) {
-            std::cerr << "[Skip] Библиотека '" << fileName
-                << "' не содержит точку входа '" << PLUGIN_ENTRY_SYMBOL << "'.\n";
-            continue;
-        }
-
-        const PluginDescriptor* desc = nullptr;
-        try {
-            desc = registerFunc();
-        }
-        catch (...) {
-            std::cerr << "[Skip] Исключение при инициализации плагина в '" << fileName << "'.\n";
-            continue;
-        }
-
-        if (!desc || desc->abiVersion != PLUGIN_ABI_VERSION || !desc->functionName || !desc->execute) {
-            std::cerr << "[Skip] Некорректная структура дескриптора или версия ABI в '" << fileName << "'.\n";
-            continue;
-        }
-
-        std::string funcName(desc->functionName);
-        if (!isValidIdentifier(funcName)) {
-            std::cerr << "[Skip] Некорректное имя функции '" << funcName
-                << "' в плагине '" << fileName << "'.\n";
-            continue;
-        }
-
-        if (functions_.find(funcName) != functions_.end()) {
-            std::cerr << "[Skip] Конфликт имён: функция '" << funcName
-                << "' из '" << fileName << "' уже зарегистрирована.\n";
-            continue;
-        }
-
-        PluginExecuteFunc rawExec = desc->execute;
-
-        functions_[funcName] = [rawExec, funcName](double arg) -> double {
-            double result = 0.0;
-            char errorBuf[256] = { 0 };
-            int status = 0;
-
-            try {
-                status = rawExec(arg, &result, errorBuf, sizeof(errorBuf));
-            }
-            catch (const std::exception& e) {
-                throw std::runtime_error("Исключение в функции '" + funcName + "': " + e.what());
-            }
-            catch (...) {
-                throw std::runtime_error("Неизвестное исключение в функции '" + funcName + "'");
-            }
-
-            if (status != 0) {
-                std::string errMsg = (errorBuf[0] != '\0') ? errorBuf : "ошибка вычисления";
-                throw std::domain_error("Ошибка в функции " + funcName + "(" + std::to_string(arg) + "): " + errMsg);
-            }
-
-            if (!std::isfinite(result)) {
-                throw std::overflow_error("Функция " + funcName + " вернула бесконечность или NaN");
-            }
-
-            return result;
-            };
-
-        loadedModules_.push_back(std::move(module));
-        ++loadedCount;
-
-        std::cout << "[OK] Загружена функция '" << funcName
-            << "' (источник: " << fileName << ")\n";
+    if (ec) {
+        std::cerr << "[Error] РћС€РёР±РєР° С‡С‚РµРЅРёСЏ РґРёСЂРµРєС‚РѕСЂРёРё: " << ec.message() << "\n";
     }
 
     if (totalDlls == 0) {
-        std::cout << "[Info] В папке '" << pluginDir.string()
-            << "' нет ни одного .dll файла. Доступны базовые операции.\n";
+        std::cout << "[Info] Р’ РїР°РїРєРµ '" << pluginDir.string()
+            << "' РЅРµС‚ РЅРё РѕРґРЅРѕРіРѕ .dll С„Р°Р№Р»Р°. Р”РѕСЃС‚СѓРїРЅС‹ Р±Р°Р·РѕРІС‹Рµ РѕРїРµСЂР°С†РёРё.\n";
     }
     else {
-        std::cout << "[Info] Загружено плагинов: " << loadedCount << " из " << totalDlls << ".\n";
+        std::cout << "[Info] Р—Р°РіСЂСѓР¶РµРЅРѕ РїР»Р°РіРёРЅРѕРІ: " << loadedCount << " РёР· " << totalDlls << ".\n";
     }
-}
-
-bool PluginManager::hasFunction(const std::string& name) const {
-    return functions_.find(name) != functions_.end();
 }
 
 double PluginManager::callFunction(const std::string& name, double arg) const {
     auto it = functions_.find(name);
     if (it == functions_.end()) {
-        throw std::invalid_argument("Неизвестная функция: '" + name + "'");
+        throw std::invalid_argument("РќРµРёР·РІРµСЃС‚РЅР°СЏ С„СѓРЅРєС†РёСЏ: '" + name + "'");
     }
     return it->second(arg);
 }

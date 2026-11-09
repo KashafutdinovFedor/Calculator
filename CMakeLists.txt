@@ -1,42 +1,50 @@
 cmake_minimum_required(VERSION 3.20)
 project(CalculatorWithPlugins VERSION 1.0.0 LANGUAGES CXX)
 
-# Строгое требование стандарта C++17
+# РЎС‚СЂРѕРіРѕРµ С‚СЂРµР±РѕРІР°РЅРёРµ СЃС‚Р°РЅРґР°СЂС‚Р° C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Папка с плагинами по умолчанию
+# РСЃС…РѕРґРЅРёРєРё Рё СЃС‚СЂРѕРєРё РІ РїСЂРѕРіСЂР°РјРјРµ вЂ” РІ UTF-8 (РєРѕРЅСЃРѕР»СЊ РїРµСЂРµРєР»СЋС‡Р°РµС‚СЃСЏ РЅР° UTF-8 РІ main.cpp)
+if (MSVC)
+    add_compile_options(/utf-8)
+endif()
+
+# РџР°РїРєР° СЃ РїР»Р°РіРёРЅР°РјРё РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
 set( calc_PLUGIN_DIR_NAME "plugins" )
 
-# CMake time: генерация конфигурационного заголовочного файла (Generated Sources files на слайде 2)
+# CMake time: РіРµРЅРµСЂР°С†РёСЏ РєРѕРЅС„РёРіСѓСЂР°С†РёРѕРЅРЅРѕРіРѕ Р·Р°РіРѕР»РѕРІРѕС‡РЅРѕРіРѕ С„Р°Р№Р»Р° (Generated Sources files РЅР° СЃР»Р°Р№РґРµ 2)
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/include/config.h.in"
     "${CMAKE_CURRENT_BINARY_DIR}/generated/config.h"
     @ONLY
 )
 
-# Сборка основного приложения (ядро калькулятора)
-add_executable(calc
-    src/main.cpp
+# РЇРґСЂРѕ РєР°Р»СЊРєСѓР»СЏС‚РѕСЂР° (РїР°СЂСЃРµСЂ + РјРµРЅРµРґР¶РµСЂ РїР»Р°РіРёРЅРѕРІ): РѕР±С‰РµРµ РґР»СЏ РїСЂРёР»РѕР¶РµРЅРёСЏ Рё РїСЂРёРјРµСЂРѕРІ
+add_library(calc_core STATIC
     src/plugin_manager.cpp
     src/expression_parser.cpp
 )
 
-target_include_directories(calc PRIVATE
+target_include_directories(calc_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_BINARY_DIR}/generated"
 )
 
 if (NOT WIN32)
-    target_link_libraries(calc PRIVATE dl)
+    target_link_libraries(calc_core PUBLIC dl)
 endif()
+
+# РЎР±РѕСЂРєР° РѕСЃРЅРѕРІРЅРѕРіРѕ РїСЂРёР»РѕР¶РµРЅРёСЏ
+add_executable(calc src/main.cpp)
+target_link_libraries(calc PRIVATE calc_core)
 
 set_target_properties(calc PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>"
 )
 
-# Функция для сборки динамических библиотек плагинов (.dll / .so)
+# Р¤СѓРЅРєС†РёСЏ РґР»СЏ СЃР±РѕСЂРєРё РґРёРЅР°РјРёС‡РµСЃРєРёС… Р±РёР±Р»РёРѕС‚РµРє РїР»Р°РіРёРЅРѕРІ (.dll / .so)
 function(add_calc_plugin target_name src_file)
     add_library(${target_name} MODULE ${src_file})
 
@@ -64,7 +72,7 @@ function(add_calc_plugin target_name src_file)
     )
 endfunction()
 
-# Регистрация всех плагинов
+# Р РµРіРёСЃС‚СЂР°С†РёСЏ РІСЃРµС… РїР»Р°РіРёРЅРѕРІ
 add_calc_plugin(funcsin  plugins/funcsin.cpp)
 add_calc_plugin(funccos  plugins/funccos.cpp)
 add_calc_plugin(funcln   plugins/funcln.cpp)
@@ -72,6 +80,7 @@ add_calc_plugin(funcsqrt plugins/funcsqrt.cpp)
 add_calc_plugin(funcexp  plugins/funcexp.cpp)
 add_calc_plugin(funcdeg  plugins/funcdeg.cpp)
 
-# Install time & CPack time (в соответствии со слайдом 2)
+
+# Install time & CPack time (РІ СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРё СЃРѕ СЃР»Р°Р№РґРѕРј 2)
 install(TARGETS calc RUNTIME DESTINATION .)
 include(CPack)
