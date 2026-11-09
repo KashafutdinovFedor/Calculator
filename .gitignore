@@ -1,25 +1,51 @@
-# Игнорировать папки сборки и временные файлы VS
-.vs/
+# РљСЌС€ Рё СЃРіРµРЅРµСЂРёСЂРѕРІР°РЅРЅС‹Рµ С„Р°Р№Р»С‹ CMake 
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+CMakeSettings.json
+CMakeUserPresets.json
+
+# РџР°РїРєРё СЃР±РѕСЂРєРё Рё РІС‹РІРѕРґР°
 out/
 build/
-Debug/
-Release/
+bin/
+lib/
+obj/
+install/
+generated/
+[Dd]ebug/
+[Rr]elease/
 x64/
 x86/
-bin/
-obj/
 
-# Игнорировать пользовательские настройки
-*.user
+# РљСЌС€ Рё РїСЂРѕРµРєС‚РЅС‹Рµ С„Р°Р№Р»С‹ IDE
+.vs/
+.vscode/
+.idea/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
 *.suo
+*.user
 *.db
 *.opendb
 *.VC.db
+*.vsidx
 
-# Игнорировать бинарные файлы
+# РЎРєРѕРјРїРёР»РёСЂРѕРІР°РЅРЅС‹Рµ Р±РёРЅР°СЂРЅС‹Рµ Рё РѕР±СЉРµРєС‚РЅС‹Рµ С„Р°Р№Р»С‹
 *.exe
 *.dll
+*.so
+*.dylib
 *.lib
+*.a
+*.exp
 *.pdb
 *.ilk
 *.obj
+*.o
